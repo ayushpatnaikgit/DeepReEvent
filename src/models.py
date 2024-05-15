@@ -65,7 +65,7 @@ class SimpleRNN(nn.Module):
             The output tensor after applying the RNN and fully connected layer,
             reshaped to have specified number of outputs per sample and passed through a sigmoid activation function.
         """
-        x = x.unsqueeze(1).repeat(1, self.output_size, 1)
+        x = x.unsqueeze(1).repeat(1, self.output_size, 1) ## replace this with time-varying covariates. 
         output, hidden = self.rnn(x)  # Process input through RNN
         output = self.fc(output[:, -1, :])  # Apply the fully connected layer to the last hidden state
         output = output.view(output.size(0), -1, self.num_events)  # Reshape output to have specified number of events per sample

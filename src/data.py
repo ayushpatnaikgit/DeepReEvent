@@ -1,9 +1,6 @@
 import pandas as pd
 import numpy as np
 
-import pandas as pd
-import numpy as np
-
 def _load_readmission_dataset(sequential):
     """
     Helper function to load and preprocess the readmission dataset.
@@ -47,13 +44,13 @@ def _load_readmission_dataset(sequential):
     data['max_time'] = data.groupby('id')['t.stop'].transform(max)
 
     # Process categorical variables
-    dat_cat = data[['chemo', 'sex', 'dukes']]
+    dat_cat = data[['chemo', 'sex', 'dukes', 'charlson']]
     x_ = pd.get_dummies(dat_cat).values
     
     # Calculate times and events
-    event = data['t.stop'].values.reshape(-1, 1) / 365.25
-    event_round = (data['t.stop'] / 365.25).apply(round).values.reshape(-1, 1)
-    time = (data['max_time'] / 365.25).apply(round).values
+    event = data['t.stop'].values.reshape(-1, 1) / 100
+    event_round = (data['t.stop'] / 100).apply(round).values.reshape(-1, 1)
+    time = (data['max_time'] / 100).apply(round).values
     death = data['death'].values
 
     if not sequential:
@@ -61,10 +58,12 @@ def _load_readmission_dataset(sequential):
     else:
         x, t, d, e = [], [], [], []
         for id_ in sorted(list(set(data['id']))):
-            x.append(x_[data['id'] == id_][0])
-            t.append(time[data['id'] == id_][0])
-            e_tmp = event_round[data['id'] == id_]
+            group_indices = data['id'] == id_
+            x_group = x_[group_indices]
+            mode_x_group = pd.DataFrame(x_group).mode().values[0]
+            x.append(mode_x_group)
+            t.append(time[group_indices][0])
+            e_tmp = event_round[group_indices]
             e.append(e_tmp.reshape(e_tmp.shape[0]))
-            d.append(death[data['id'] == id_][0])
-        
+            d.append(death[group_indices][0])
         return x, t, e, d

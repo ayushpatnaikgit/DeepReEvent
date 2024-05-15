@@ -29,6 +29,7 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
 
     # Calculate metrics
     cis = [concordance_index_ipcw(et_train, et_test, out_risk[:, i], times[i])[0] for i in range(len(times))]
+    ### CHECK THIS:  out_risk[:, i]
 
     brs = brier_score(et_train, et_test, survival_probabilities[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1))[1]
 
@@ -43,3 +44,18 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
     }
 
     return metrics
+
+def recurrent_cindex(out_risk, event_times, max_time):
+    current_time = 20
+    # out_risk = out_risk.cpu().detach().numpy()
+    expected_number_of_events = out_risk[:, 0:current_time].sum(dim=1)
+    mask = event_times < current_time
+    observed_number_of_events = mask.sum(dim=1)
+    concordant_pairs = 0
+    total_pairs = 0
+    for i in range(0, expected_number_of_events.shape[1]):
+        for j in range(0, expected_number_of_events.shape[1]):
+            if expected_number_of_events[i] > expected_number_of_events[j] and observed_number_of_events[i] > observed_number_of_events[j]:
+                concordant_pairs += 1
+            total_pairs += 1  
+    return concordant_pairs / total_pairs
