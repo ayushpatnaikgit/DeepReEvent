@@ -9,8 +9,6 @@ class SimpleRNN(nn.Module):
     ----------
     rnn : torch.nn.RNN
         The RNN layer that processes the input sequence.
-    fc : torch.nn.Linear
-        A fully connected layer that maps the hidden state to the output space corresponding to the specified number of events.
 
     Parameters
     ----------
@@ -18,8 +16,6 @@ class SimpleRNN(nn.Module):
         The number of expected features in the input `x`.
     hidden_size : int
         The number of features in the hidden state `h`.
-    output_size : int
-        The number of features in the output for each event.
     num_events : int
         The number of event outcomes to predict per sample.
 
@@ -33,22 +29,21 @@ class SimpleRNN(nn.Module):
     >>> torch.manual_seed(0)
     >>> input_size = 10
     >>> hidden_size = 20
-    >>> output_size = 5
     >>> num_events = 2
     >>> seq_length = 15
     >>> batch_size = 3
     >>> x = torch.randn(batch_size, seq_length, input_size)
-    >>> model = SimpleRNN(input_size, hidden_size, output_size, num_events)
+    >>> model = SimpleRNN(input_size, hidden_size, num_events)
     >>> output = model(x)
     >>> print("Output Shape:", output.shape)
     >>> print("Output Tensor:", output)
     """
     def __init__(self, input_size, hidden_size, output_size, num_events):
         super(SimpleRNN, self).__init__()
-        self.output_size = output_size
         self.num_events = num_events
+        self.output_size = output_size
         self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size * num_events)  # Adjust the output size based on the number of events
+        self.fc = nn.Linear(hidden_size, num_events) 
 
     def forward(self, x):
         """
@@ -62,11 +57,10 @@ class SimpleRNN(nn.Module):
         Returns
         -------
         torch.Tensor
-            The output tensor after applying the RNN and fully connected layer,
-            reshaped to have specified number of outputs per sample and passed through a sigmoid activation function.
+            The output tensor after applying the RNN, reshaped to have specified number of outputs per sample
+            and passed through a sigmoid activation function.
         """
-        x = x.unsqueeze(1).repeat(1, self.output_size, 1) ## replace this with time-varying covariates. 
+        x = x.unsqueeze(1).repeat(1, self.output_size, 1)  # Replace this with time-varying covariates if needed
         output, hidden = self.rnn(x)  # Process input through RNN
-        output = self.fc(output[:, -1, :])  # Apply the fully connected layer to the last hidden state
-        output = output.view(output.size(0), -1, self.num_events)  # Reshape output to have specified number of events per sample
+        output = self.fc(output)
         return torch.sigmoid(output)  # Apply sigmoid activation function to output

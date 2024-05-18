@@ -48,7 +48,13 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
 def recurrent_cindex(out_risk, event_times, max_time):
     current_time = 20
     # out_risk = out_risk.cpu().detach().numpy()
-    expected_number_of_events = out_risk[:, 0:current_time].sum(dim=1)
+    current_time = 20
+
+    expected_number_of_events = torch.zeros(out_risk.size(0))
+
+    for i in range(out_risk.size(0)):
+        clamped_time = min(current_time, t_test[i].item())
+        expected_number_of_events[i] = out_risk[i, 0:clamped_time].sum()
     mask = event_times < current_time
     observed_number_of_events = mask.sum(dim=1)
     concordant_pairs = 0
