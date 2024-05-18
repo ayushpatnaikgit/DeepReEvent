@@ -32,9 +32,9 @@ def recurrent_loss(h, t, e):
 
         # Remove the indices to exclude
         non_events = list(all_indices - set(indices_to_exclude))
-        if t == 0: 
-            # skip if censoring at 0. This is an issue due to discretisation. 
-            return torch.tensor(0.0)
+        # if t == 0: 
+        #     # skip if censoring or death at 0. This is an issue due to discretisation. 
+        #     return torch.tensor(0.0)
 
         # Calculate the negative log-likelihood for both the event occurrences and non-occurrences
         return -1 * (torch.sum(torch.log(h[0:t][events])) + torch.sum(torch.log(1 - h[0:t][non_events])))
@@ -65,9 +65,16 @@ def survival_loss(h, t, d):
     """
     def L_uncensored(h, t):
         # Log-likelihood contribution from observed event
+        # if t == 0: 
+        #     # skip if death at 0. This is an issue due to discretisation. 
+        #     return torch.tensor(0.0)
+
         L1 = torch.log(h[t-1])
         # Log-likelihood contribution from survival until time t
         L2 = torch.sum(torch.log(1 - h[0:(t-1)]))
+
+        # L3 = torch.sum(torch.log(1 - torch.prod(1 - h[0:t]))) 
+        # L2 = torch.sum(torch.log(1 - torch.cat((h[:t-1], h[t:]), dim=0)))
         # Combine and return the negative log-likelihood for uncensored data
         return -1 * torch.sum(L1 + L2)
     
