@@ -132,7 +132,7 @@ def _load_simData(sequential):
     event = data['t.stop'].values.reshape(-1, 1)
     event_round = data['t.stop'].apply(math.ceil).values.reshape(-1, 1)
     time = data['max_time'].apply(math.ceil).values
-    death = data['death'].values
+    status = data['status'].values
 
     if not sequential:
         return x_, time, event
@@ -143,7 +143,7 @@ def _load_simData(sequential):
             t.append(time[data['id'] == id_][0])
             e_tmp = event_round[data['id'] == id_]
             e.append(e_tmp.reshape(e_tmp.shape[0]))
-            d.append(death[data['id'] == id_][0])
+            d.append(status[data['id'] == id_][0])
         return x, t, e, d
 
 
