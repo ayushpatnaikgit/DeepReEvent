@@ -19,10 +19,9 @@ def recurrent_loss(h, t, e):
         Mean loss computed over all samples in the batch.
     """
     def L(h, t, e):
-        # Create a mask for all time points up to time t, initially setting all to True
-        mask = torch.ones_like(h[0:t], dtype=torch.bool)
-        # Set mask to False for time points where events occurred
-        mask[e[e < t]] = False
+        _, counts = torch.unique(e[e <= t], return_counts=True)
+        mask = e != 100 # replace by mask value
+        # L1 = (torch.sum(h[0:t]) - mask.sum().item())**2 
 
         events = (e[e <= t] - 1)
         indices_to_exclude = events.tolist()
@@ -32,13 +31,10 @@ def recurrent_loss(h, t, e):
 
         # Remove the indices to exclude
         non_events = list(all_indices - set(indices_to_exclude))
-        # if t == 0: 
-        #     # skip if censoring or death at 0. This is an issue due to discretisation. 
-        #     return torch.tensor(0.0)
 
         # Calculate the negative log-likelihood for both the event occurrences and non-occurrences
-        return -1 * (torch.sum(torch.log(h[0:t][events])) + torch.sum(torch.log(1 - h[0:t][non_events])))
-
+        L2 = -1 * (torch.sum(torch.log(h[0:t][events])) + torch.sum(torch.log(1 - h[0:t][non_events])))
+        return  L2
 
     # Calculate loss for each sample in the batch and store in a list
     losses = [L(h[i], t[i], e[i]) for i in range(h.shape[0])]
