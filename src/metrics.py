@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from sksurv.metrics import concordance_index_ipcw, brier_score, cumulative_dynamic_auc
 
 def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_val, t_val):
@@ -18,7 +19,7 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
     cumulative_hazard = np.cumsum(out_risk, axis=1)
     survival_probabilities = np.exp(-cumulative_hazard)
 
-    times = np.arange(1, max(t_test).long() + 1, 1)
+    times = np.arange(2, max(t_test).long(), 1)
 
     et_train = np.array([(d_train[i], t_train[i]) for i in range(len(d_train))],
                         dtype=[('e', 'bool'), ('t', 'float64')])
@@ -45,23 +46,35 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
 
     return metrics
 
-def recurrent_cindex(out_risk, event_times, max_time):
-    current_time = 20
+def recurrent_cindex(out_risk, event_times, terminal_time, max_time):
     # out_risk = out_risk.cpu().detach().numpy()
-    current_time = 20
+    
+    cindices = []
+    for current_time in range(2, max_time, 1):
+        expected_number_of_events = torch.zeros(out_risk.size(0))
+        for i in range(out_risk.size(0)):
+            clamped_time = min(current_time, terminal_time[i].item())
+            expected_number_of_events[i] = out_risk[i, 0:clamped_time].sum()
+        mask = event_times < current_time
+        observed_number_of_events = mask.sum(dim=1)
+        concordant_pairs = 0
+        total_pairs = 0
 
-    expected_number_of_events = torch.zeros(out_risk.size(0))
+        n = len(expected_number_of_events)
+        concordant_pairs = 0
+        permissible_pairs = 0
+        tied_risk_pairs = 0
 
-    for i in range(out_risk.size(0)):
-        clamped_time = min(current_time, t_test[i].item())
-        expected_number_of_events[i] = out_risk[i, 0:clamped_time].sum()
-    mask = event_times < current_time
-    observed_number_of_events = mask.sum(dim=1)
-    concordant_pairs = 0
-    total_pairs = 0
-    for i in range(0, expected_number_of_events.shape[1]):
-        for j in range(0, expected_number_of_events.shape[1]):
-            if expected_number_of_events[i] > expected_number_of_events[j] and observed_number_of_events[i] > observed_number_of_events[j]:
-                concordant_pairs += 1
-            total_pairs += 1  
-    return concordant_pairs / total_pairs
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    if observed_number_of_events[i] < observed_number_of_events[j]:
+                        permissible_pairs += 1
+                        if expected_number_of_events[i] > expected_number_of_events[j]:
+                            concordant_pairs += 1
+                        elif expected_number_of_events[i] == expected_number_of_events[j]:
+                            tied_risk_pairs += 1
+                            # print(tied_risk_pairs)
+
+        cindices.append((concordant_pairs + 0.5 * tied_risk_pairs) / permissible_pairs)
+    return cindices
