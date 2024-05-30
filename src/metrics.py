@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from sksurv.metrics import concordance_index_ipcw, brier_score, cumulative_dynamic_auc
 
-def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_val, t_val):
+def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_val, t_val, horizons = "all"):
     """
     Calculate survival analysis metrics including concordance index, Brier score, and ROC AUC.
 
@@ -36,21 +36,23 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
 
     # roc_auc = [cumulative_dynamic_auc(et_train, et_test, out_risk[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1)[i])[0] for i in range(len(times))]
 
-    metrics = {
-        'Brier Score': brs,
-        # 'ROC AUC': roc_auc,
-        '25th Quantile CI': cis[int(len(cis)*0.25)],
-        '50th Quantile CI': cis[int(len(cis)*0.5)],
-        '75th Quantile CI': cis[int(len(cis)*0.75)]
-    }
-
+    metrics = {}
+    if horizons == "all":
+        metrics = {f'Time {times[i]}': cis[i] for i in range(len(times))}
+    else:
+        for horizon in horizons:
+            index = int(len(cis) * horizon)
+            metrics[f'{int(horizon * 100)}th Quantile CI'] = cis[index]
+    
     return metrics
 
-def recurrent_cindex(out_risk, event_times, terminal_time, max_time):
+
+def recurrent_cindex(out_risk, event_times, terminal_time, max_time, horizons = "all"):
     # out_risk = out_risk.cpu().detach().numpy()
     
-    cindices = []
-    for current_time in range(2, max_time, 1):
+    cis = []
+    times = range(2, max_time, 1)
+    for current_time in times:
         expected_number_of_events = torch.zeros(out_risk.size(0))
         for i in range(out_risk.size(0)):
             clamped_time = min(current_time, terminal_time[i].item())
@@ -74,7 +76,15 @@ def recurrent_cindex(out_risk, event_times, terminal_time, max_time):
                             concordant_pairs += 1
                         elif expected_number_of_events[i] == expected_number_of_events[j]:
                             tied_risk_pairs += 1
-                            # print(tied_risk_pairs)
 
-        cindices.append((concordant_pairs + 0.5 * tied_risk_pairs) / permissible_pairs)
-    return cindices
+        cis.append((concordant_pairs + 0.5 * tied_risk_pairs) / permissible_pairs)
+    
+    metrics = {}
+    if horizons == "all":
+        metrics = {f'Time {times[i]}': cis[i] for i in range(len(times))}
+    else:
+        for horizon in horizons:
+            index = int(len(cis) * horizon)
+            metrics[f'{int(horizon * 100)}th Quantile CI'] = cis[index]
+    
+    return metrics

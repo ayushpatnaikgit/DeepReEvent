@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch.utils.data import DataLoader, TensorDataset
 
 def _get_padded_features(features, pad_value=np.nan):
     """
@@ -105,3 +106,29 @@ def _prepare_rt_tensors(x, t, e, d, device='cpu', pad_value=100, train_ratio=0.7
     }
 
     return data
+
+def _prepare_dataloaders(data, batch_size=32):
+    """
+    Prepares DataLoader objects for training, validation, and test datasets.
+
+    Parameters
+    ----------
+    data : dict
+        A dictionary containing tensors for features, times, events, deaths and their respective splits: train, test, and validation.
+    batch_size : int, optional
+        The batch size to be used by the DataLoaders (default is 32).
+
+    Returns
+    -------
+    dict
+        A dictionary containing DataLoader objects for train, validation, and test datasets.
+    """
+    train_dataset = TensorDataset(data['x_train'], data['t_train'], data['e_train'], data['d_train'])
+    val_dataset = TensorDataset(data['x_val'], data['t_val'], data['e_val'], data['d_val'])
+    test_dataset = TensorDataset(data['x_test'], data['t_test'], data['e_test'], data['d_test'])
+
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_dataloader, val_dataloader, test_dataloader
