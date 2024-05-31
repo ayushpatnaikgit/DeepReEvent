@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
+import random
+
 
 def _get_padded_features(features, pad_value=np.nan):
     """
@@ -132,3 +134,22 @@ def _prepare_dataloaders(data, batch_size=32):
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return train_dataloader, val_dataloader, test_dataloader
+
+def set_seed(seed):
+    # Set seed for Python's built-in random module
+    random.seed(seed)
+    
+    # Set seed for NumPy
+    np.random.seed(seed)
+    
+    # Set seed for PyTorch
+    torch.manual_seed(seed)
+    
+    # If using GPU
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+        
+    # For ensuring deterministic behavior in certain operations (optional)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False

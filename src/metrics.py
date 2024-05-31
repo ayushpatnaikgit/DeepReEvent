@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from sksurv.metrics import concordance_index_ipcw, brier_score, cumulative_dynamic_auc
 
-def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_val, t_val, horizons = "all"):
+def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, horizons = "all"):
     """
     Calculate survival analysis metrics including concordance index, Brier score, and ROC AUC.
 
@@ -19,25 +19,22 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
     cumulative_hazard = np.cumsum(out_risk, axis=1)
     survival_probabilities = np.exp(-cumulative_hazard)
 
-    times = np.arange(2, max(t_test).long(), 1)
-
+    times = list(range(2, max(t_test).long()+1, 1))
     et_train = np.array([(d_train[i], t_train[i]) for i in range(len(d_train))],
                         dtype=[('e', 'bool'), ('t', 'float64')])
     et_test = np.array([(d_test[i], t_test[i]) for i in range(len(d_test))],
                         dtype=[('e', 'bool'), ('t', 'float64')])
-    et_val = np.array([(d_val[i], t_val[i]) for i in range(len(d_val))],
-                        dtype=[('e', 'bool'), ('t', 'float64')])
 
     # Calculate metrics
-    cis = [concordance_index_ipcw(et_train, et_test, out_risk[:, i], times[i])[0] for i in range(len(times))]
-    ### CHECK THIS:  out_risk[:, i]
-
-    brs = brier_score(et_train, et_test, survival_probabilities[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1))[1]
+    cis = []
+    for i in times:
+        cis.append(concordance_index_ipcw(et_train, et_test, out_risk[:, i],tau =  i)[0])
+    # brs = brier_score(et_train, et_test, survival_probabilities[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1))[1]
 
     # roc_auc = [cumulative_dynamic_auc(et_train, et_test, out_risk[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1)[i])[0] for i in range(len(times))]
     metrics = {}
     if horizons == "all":
-        metrics = {f'Time {times[i]}': cis[i] for i in range(len(times))}
+        metrics = {f'Time {times[i]+1}': cis[i] for i in range(len(times))}
     else:
         for horizon in horizons:
             index = int(len(cis) * horizon)
