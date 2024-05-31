@@ -35,7 +35,6 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
     brs = brier_score(et_train, et_test, survival_probabilities[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1))[1]
 
     # roc_auc = [cumulative_dynamic_auc(et_train, et_test, out_risk[:, 1:int(max(t_test))], np.arange(1, int(max(t_test)), 1)[i])[0] for i in range(len(times))]
-
     metrics = {}
     if horizons == "all":
         metrics = {f'Time {times[i]}': cis[i] for i in range(len(times))}
@@ -47,20 +46,19 @@ def calculate_survival_metrics(predictions, d_train, t_train, d_test, t_test, d_
     return metrics
 
 
-def recurrent_cindex(out_risk, event_times, terminal_time, max_time, horizons = "all"):
-    # out_risk = out_risk.cpu().detach().numpy()
+def recurrent_cindex(out_risk, event_times, terminal_time, max_time, horizons = "all", tolerance = 0.2):
     
     cis = []
-    times = range(2, max_time, 1)
+    times = range(1, max_time+1, 1)
     for current_time in times:
         expected_number_of_events = torch.zeros(out_risk.size(0))
         for i in range(out_risk.size(0)):
             clamped_time = min(current_time, terminal_time[i].item())
             expected_number_of_events[i] = out_risk[i, 0:clamped_time].sum()
-        mask = event_times < current_time
+        mask = event_times <= current_time
         observed_number_of_events = mask.sum(dim=1)
+        # return expected_number_of_events, observed_number_of_events
         concordant_pairs = 0
-        total_pairs = 0
 
         n = len(expected_number_of_events)
         concordant_pairs = 0
@@ -69,12 +67,12 @@ def recurrent_cindex(out_risk, event_times, terminal_time, max_time, horizons = 
 
         for i in range(n):
             for j in range(n):
-                if i != j:
-                    if observed_number_of_events[i] < observed_number_of_events[j]:
+                if i < j:
+                    if observed_number_of_events[i] > observed_number_of_events[j]:
                         permissible_pairs += 1
                         if expected_number_of_events[i] > expected_number_of_events[j]:
                             concordant_pairs += 1
-                        elif expected_number_of_events[i] == expected_number_of_events[j]:
+                        elif abs(expected_number_of_events[i] - expected_number_of_events[j]) < tolerance:
                             tied_risk_pairs += 1
 
         cis.append((concordant_pairs + 0.5 * tied_risk_pairs) / permissible_pairs)
